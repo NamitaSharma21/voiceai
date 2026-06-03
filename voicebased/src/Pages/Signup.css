@@ -1,0 +1,74 @@
+.auth-page {
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  background: linear-gradient(135deg, #0f172a, #111827);
+}
+
+.auth-box {
+  width: 360px;
+  padding: 30px;
+  border-radius: 18px;
+
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+
+  backdrop-filter: blur(12px);
+  color: #e2e8f0;
+}
+
+.auth-box h2 {
+  margin-bottom: 18px;
+}
+
+.auth-box input {
+  width: 100%;
+  padding: 12px;
+  margin: 10px 0;
+
+  border-radius: 10px;
+  border: none;
+
+  background: rgba(0,0,0,0.4);
+  color: white;
+  outline: none;
+}
+
+.auth-box button {
+  width: 100%;
+  padding: 12px;
+
+  border-radius: 10px;
+  border: none;
+
+  background: linear-gradient(135deg, #22c55e, #4ade80);
+  color: white;
+  font-weight: bold;
+
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+.auth-box button:hover {
+  opacity: 0.9;
+}
+
+/* 👇 SWITCH LINK (IMPORTANT) */
+.switch {
+  margin-top: 15px;
+  text-align: center;
+  font-size: 14px;
+  color: #cbd5f5;
+}
+
+.switch a {
+  color: #38bdf8;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.switch a:hover {
+  text-decoration: underline;
+}
