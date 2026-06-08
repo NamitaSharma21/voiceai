@@ -5,6 +5,8 @@ const bcrypt = require('bcryptjs');
 
 // ==================== TOKEN ====================
 const generateToken = (id) => {
+    console.log("JWT_SECRET CHECK:", process.env.JWT_SECRET);
+
   return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: '7d'
   });
