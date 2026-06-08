@@ -1,34 +1,44 @@
 import { useState } from "react";
-import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
 import "./Signup.css";
+import { authService } from "../services/api";
 
 function Signup() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
-  const VITE_API_URL = import.meta.env.VITE_API_URL;
+
   const handleSignup = async (e) => {
     e.preventDefault();
+    setError("");
+    setLoading(true);
 
     try {
-      const res = await axios.post(`${VITE_API_URL}/api/auth/signup`  , {
-        name,
-        email,
-        password,
-      });
-      localStorage.setItem("token", res.data.token);
+      const payloadEmail = email.trim().toLowerCase();
+
+      const res = await authService.signup(name, payloadEmail, password);
+
+      // 🔥 FIX: safety check (backend sometimes returns data object)
+      const token = res?.token || res?.data?.token;
+
+      if (!token) throw new Error("Token not received from server");
+
+      localStorage.setItem("token", token);
       window.dispatchEvent(new Event("authChange"));
 
       alert("Signup successful");
-
-      // redirect to dashboard after signup
       navigate("/dashboard");
 
     } catch (err) {
-      alert(err.response?.data?.message || "Signup failed");
+      const errorMessage = err.message || "Signup failed";
+      setError(errorMessage);
+      alert(errorMessage);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -37,26 +47,36 @@ function Signup() {
       <div className="auth-box">
         <h2>Signup</h2>
 
+        {error && <div style={{ color: 'red', marginBottom: '10px' }}>{error}</div>}
+
         <form onSubmit={handleSignup}>
           <input
             type="text"
             placeholder="Name"
+            value={name}
             onChange={(e) => setName(e.target.value)}
+            required
           />
 
           <input
             type="email"
             placeholder="Email"
+            value={email}
             onChange={(e) => setEmail(e.target.value)}
+            required
           />
 
           <input
             type="password"
             placeholder="Password"
+            value={password}
             onChange={(e) => setPassword(e.target.value)}
+            required
           />
 
-          <button type="submit">Signup</button>
+          <button type="submit" disabled={loading}>
+            {loading ? "Loading..." : "Signup"}
+          </button>
         </form>
 
         <p className="switch">

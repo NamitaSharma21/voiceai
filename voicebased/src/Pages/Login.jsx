@@ -1,34 +1,42 @@
 import { useState } from "react";
-import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
 import "./Login.css";
+import { authService } from "../services/api";
 
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-const VITE_API_URL = import.meta.env.VITE_API_URL;
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    setError("");
+    setLoading(true);
 
     try {
-      const res = await axios.post(`${VITE_API_URL}/api/auth/login`, {
-        email,
-        password,
-      });
-      
+      const payloadEmail = email.trim().toLowerCase();
 
-      localStorage.setItem("token", res.data.token);
+      const res = await authService.login(payloadEmail, password);
+
+      // 🔥 FIX: safe token extraction
+      const token = res?.token || res?.data?.token;
+
+      if (!token) throw new Error("Token not received from server");
+
+      localStorage.setItem("token", token);
       window.dispatchEvent(new Event("authChange"));
 
       alert("Login successful");
-
-      // redirect to dashboard after login
-      navigate("/dashboard");
+      navigate("/");
 
     } catch (err) {
-      alert(err.response?.data?.message || "Login failed");
+      const errorMessage = err.message || "Login failed";
+      setError(errorMessage);
+      alert(errorMessage);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -37,20 +45,28 @@ const VITE_API_URL = import.meta.env.VITE_API_URL;
       <div className="auth-box">
         <h2>Login</h2>
 
+        {error && <div style={{ color: 'red', marginBottom: '10px' }}>{error}</div>}
+
         <form onSubmit={handleLogin}>
           <input
             type="email"
             placeholder="Email"
+            value={email}
             onChange={(e) => setEmail(e.target.value)}
+            required
           />
 
           <input
             type="password"
             placeholder="Password"
+            value={password}
             onChange={(e) => setPassword(e.target.value)}
+            required
           />
 
-          <button type="submit">Login</button>
+          <button type="submit" disabled={loading}>
+            {loading ? "Loading..." : "Login"}
+          </button>
         </form>
 
         <p className="switch">

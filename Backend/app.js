@@ -62,7 +62,9 @@ connectDB();
 
 // ==================== API ROUTES ====================
 
+// ✔ ONLY ONE AUTH BASE PATH (CLEAN FIX)
 app.use('/api/auth', authRoutes);
+
 app.use('/api/attempts', attemptRoutes);
 
 // Health check endpoint

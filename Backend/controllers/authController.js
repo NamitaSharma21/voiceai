@@ -1,47 +1,48 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
+const bcrypt = require('bcryptjs');
 
-// Generate JWT Token
+// ==================== TOKEN ====================
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: '7d'
   });
 };
 
-// @route   POST /api/auth/signup
-// @desc    Register a new user
-// @access  Public
+// ==================== SIGNUP ====================
 exports.signup = async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+      return res.status(400).json({
+        success: false,
+        errors: errors.array()
+      });
     }
 
     const { name, email, password, role } = req.body;
 
-    // Check if user already exists
-    let user = await User.findOne({ email });
-    if (user) {
-      return res.status(400).json({ message: 'User already exists' });
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'User already exists'
+      });
     }
 
-    // Create new user
-    user = new User({
+    const user = new User({
       name,
       email,
       password,
       role: role || 'student'
     });
 
-    // Save user to database
     await user.save();
 
-    // Generate token
     const token = generateToken(user._id);
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       token,
       user: {
@@ -51,40 +52,50 @@ exports.signup = async (req, res) => {
         role: user.role
       }
     });
+
   } catch (error) {
     console.error('Signup error:', error);
-    res.status(500).json({ message: 'Server error during signup' });
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Server error during signup'
+    });
   }
 };
 
-// @route   POST /api/auth/login
-// @desc    Authenticate user and get token
-// @access  Public
+// ==================== LOGIN ====================
 exports.login = async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+      return res.status(400).json({
+        success: false,
+        errors: errors.array()
+      });
     }
 
     const { email, password } = req.body;
 
-    // Find user and include password field
     const user = await User.findOne({ email }).select('+password');
-    if (!user) {
-      return res.status(401).json({ message: 'Invalid email or password' });
+
+    if (!user || !user.password) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password'
+      });
     }
 
-    // Check password
-    const isPasswordMatch = await user.comparePassword(password);
+    const isPasswordMatch = await bcrypt.compare(password, user.password);
+
     if (!isPasswordMatch) {
-      return res.status(401).json({ message: 'Invalid email or password' });
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password'
+      });
     }
 
-    // Generate token
     const token = generateToken(user._id);
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       token,
       user: {
@@ -94,35 +105,43 @@ exports.login = async (req, res) => {
         role: user.role
       }
     });
+
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ message: 'Server error during login' });
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Server error during login'
+    });
   }
 };
 
-// @route   GET /api/auth/me
-// @desc    Get current user profile
-// @access  Private
+// ==================== PROFILE ====================
 exports.getProfile = async (req, res) => {
   try {
     const user = await User.findById(req.userId);
+
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       user
     });
+
   } catch (error) {
     console.error('Get profile error:', error);
-    res.status(500).json({ message: 'Server error' });
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Server error'
+    });
   }
 };
 
-// @route   PUT /api/auth/update-profile
-// @desc    Update user profile
-// @access  Private
+// ==================== UPDATE PROFILE ====================
 exports.updateProfile = async (req, res) => {
   try {
     const { name, profilePic } = req.body;
@@ -134,15 +153,22 @@ exports.updateProfile = async (req, res) => {
     );
 
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       user
     });
+
   } catch (error) {
     console.error('Update profile error:', error);
-    res.status(500).json({ message: 'Server error' });
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Server error'
+    });
   }
 };
