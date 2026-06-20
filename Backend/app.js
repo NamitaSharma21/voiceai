@@ -4,6 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
 require('dotenv').config();
+console.log("APP:", process.env.JWT_SECRET);
 
 // Import routes
 const authRoutes = require('./routes/auth');
