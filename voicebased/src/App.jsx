@@ -1,11 +1,11 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 
-import Home from "./pages/Home";
-import Signup from "./pages/Signup";
-import Login from "./pages/Login";
-import Dashboard from "./pages/Dashboard";
-import SingleMode from "./pages/SingleMode";
-import GroupMode from "./pages/GroupMode";
+import Home from "./Pages/Home";
+import Signup from "./Pages/Signup";
+import Login from "./Pages/Login";
+import Dashboard from "./Pages/Dashboard";
+import SingleMode from "./Pages/SingleMode";
+import GroupMode from "./Pages/GroupMode";
 import Navbar from "./components/Navbar";
 
 const isLoggedIn = () => {
