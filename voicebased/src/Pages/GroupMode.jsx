@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useRef, useState } from "react";
 import axios from "axios";
-import "./GroupMode.css";
+import "./Groupmode.css";
 
 const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
