@@ -1,9 +1,8 @@
 ﻿import React, { useEffect, useRef, useState } from "react";
 import axios from "axios";
-import "./Groupmode.css";
+import "./GroupMode.css";
 
-const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/$/, "");
 
 const GroupMode = () => {
   const [stage, setStage] = useState("setup");
@@ -19,15 +18,14 @@ const GroupMode = () => {
   const recognitionRef = useRef(null);
   const indexRef = useRef(null);
   const transcriptRef = useRef([]);
+  const stopRequestedRef = useRef(false);
 
-  // MICROPHONE CHECK
   useEffect(() => {
     navigator.mediaDevices?.getUserMedia({ audio: true }).catch(() => {
       setError("Microphone permission denied");
     });
   }, []);
 
-  // SPEECH RECOGNITION INIT
   useEffect(() => {
     const SpeechRecognition =
       window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -41,34 +39,39 @@ const GroupMode = () => {
     recognition.continuous = true;
     recognition.interimResults = false;
     recognition.lang = "en-US";
+    recognition.maxAlternatives = 1;
 
     recognition.onresult = (event) => {
       const index = indexRef.current;
       if (index === null) return;
 
-      let text = "";
+      const latestFinalText = Array.from(event.results)
+        .filter((result) => result.isFinal)
+        .map((result) => result[0]?.transcript?.trim())
+        .filter(Boolean)
+        .slice(-1)[0];
 
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        if (event.results[i].isFinal) {
-          text += event.results[i][0].transcript + " ";
-        }
+      if (!latestFinalText) {
+        return;
       }
 
-      if (text.trim()) {
-        transcriptRef.current[index] =
-          (transcriptRef.current[index] || "") + text;
+      transcriptRef.current[index] = transcriptRef.current[index]
+        ? `${transcriptRef.current[index]} ${latestFinalText}`.trim()
+        : latestFinalText;
 
-        setParticipantInputs([...transcriptRef.current]);
-      }
+      setParticipantInputs([...transcriptRef.current]);
     };
 
     recognition.onend = () => {
+      stopRequestedRef.current = false;
       setActiveIndex(null);
       indexRef.current = null;
     };
 
-    recognition.onerror = () => {
-      setError("Voice recognition error");
+    recognition.onerror = (e) => {
+      console.error(e);
+      setError(`Voice recognition error: ${e.error || "unknown"}`);
+      stopRequestedRef.current = false;
       setActiveIndex(null);
       indexRef.current = null;
     };
@@ -76,7 +79,6 @@ const GroupMode = () => {
     recognitionRef.current = recognition;
   }, []);
 
-  // INIT PARTICIPANTS
   const initialize = () => {
     if (!topic.trim()) {
       setError("Enter topic first");
@@ -92,76 +94,51 @@ const GroupMode = () => {
     setStage("discussion");
   };
 
-  // START RECORDING
   const startRecording = (i) => {
     if (!recognitionRef.current) return;
-
     if (activeIndex !== null) return;
 
     setActiveIndex(i);
     indexRef.current = i;
-
+    stopRequestedRef.current = false;
     recognitionRef.current.start();
   };
 
-  // STOP RECORDING
   const stopRecording = () => {
-    recognitionRef.current?.stop();
-    setActiveIndex(null);
-    indexRef.current = null;
+    if (!recognitionRef.current || activeIndex === null) return;
+
+    stopRequestedRef.current = true;
+    recognitionRef.current.stop();
   };
 
-  // EVALUATE
   const evaluate = async () => {
     try {
       setLoading(true);
 
-      const text = participantInputs
-        .map((t, i) => `Person ${i + 1}: ${t || "No response"}`)
-        .join("\n");
-
-      const res = await fetch(
-        "https://api.groq.com/openai/v1/chat/completions",
+      const response = await axios.post(
+        `${BACKEND_URL}/api/attempts/group`,
         {
-          method: "POST",
+          topic,
+          participants: participantInputs,
+        },
+        {
           headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${GROQ_API_KEY}`,
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
-          body: JSON.stringify({
-            model: "openai/gpt-oss-20b",
-            messages: [
-              {
-                role: "system",
-                content:
-                  "Evaluate each participant separately with score and feedback.",
-              },
-              {
-                role: "user",
-                content: `Topic: ${topic}\n\n${text}`,
-              },
-            ],
-          }),
         }
       );
 
-      const data = await res.json();
-      const output = data?.choices?.[0]?.message?.content || "";
+      const output = response.data?.aiResponse || response.data?.attempt?.feedback || "";
+      const normalized = output.replace(/\r/g, "");
+      const split = normalized
+        .split(/\n(?=Person\s+\d+)/i)
+        .map((part) => part.trim())
+        .filter(Boolean);
 
-      const split = output.split(/(?=Person \d+)/g);
-
-      setResults(split);
+      setResults(split.length > 1 ? split : [normalized]);
       setStage("results");
-
-      // backend safe call
-      if (BACKEND_URL) {
-        await axios.post(`${BACKEND_URL}/api/attempt/group`, {
-          topic,
-          participants: participantInputs,
-          evaluation: split,
-        });
-      }
     } catch (err) {
+      console.error(err);
       setError("Evaluation failed");
     } finally {
       setLoading(false);
@@ -171,8 +148,6 @@ const GroupMode = () => {
   return (
     <div className="group-mode-page">
       <div className="group-mode-panel">
-
-        {/* HEADER */}
         <div className="group-header">
           <p className="eyebrow">GROUP MODE</p>
           <h1>Group Discussion AI Evaluator</h1>
@@ -181,10 +156,8 @@ const GroupMode = () => {
           </p>
         </div>
 
-        {/* SETUP */}
         {stage === "setup" && (
           <div className="setup-card">
-
             <div className="setup-field">
               <label>Number of participants</label>
               <input
@@ -216,7 +189,6 @@ const GroupMode = () => {
           </div>
         )}
 
-        {/* DISCUSSION */}
         {stage === "discussion" && (
           <>
             <div className="topic-banner">
@@ -227,29 +199,21 @@ const GroupMode = () => {
             <div className="participants-grid">
               {participantInputs.map((t, i) => (
                 <div key={i} className="participant-card">
-
                   <h3>Person {i + 1}</h3>
 
                   <div className="participant-top">
-
                     <button
                       className={`record-btn ${
                         activeIndex === i ? "recording" : ""
                       }`}
                       onClick={() =>
-                        activeIndex === i
-                          ? stopRecording()
-                          : startRecording(i)
+                        activeIndex === i ? stopRecording() : startRecording(i)
                       }
                     >
                       {activeIndex === i ? "Stop" : "Record"}
                     </button>
 
-                    <span>
-                      {activeIndex === i
-                        ? "Listening..."
-                        : "Tap to speak"}
-                    </span>
+                    <span>{activeIndex === i ? "Listening..." : "Tap to speak"}</span>
                   </div>
 
                   <textarea value={t} readOnly />
@@ -275,7 +239,6 @@ const GroupMode = () => {
           </>
         )}
 
-        {/* RESULTS */}
         {stage === "results" && (
           <>
             <div className="results-grid">

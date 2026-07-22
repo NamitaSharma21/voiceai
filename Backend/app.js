@@ -1,9 +1,12 @@
+const path = require('path');
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
-require('dotenv').config();
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+require('dotenv').config({ path: path.join(__dirname, '..', 'voicebased', '.env.local') });
+const config = require('./config');
 console.log("APP:", process.env.JWT_SECRET);
 
 // Import routes
@@ -18,9 +21,26 @@ const app = express();
 app.use(helmet());
 
 // CORS configuration
-console.log("CLIENT_URL =", process.env.CLIENT_URL);
+console.log("CLIENT_URL =", config.server.corsOrigin);
+const normalizeOrigin = (origin) => origin?.replace(/\/$/, '');
+const allowedOrigins = [
+  normalizeOrigin(config.server.corsOrigin),
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000'
+].filter(Boolean);
+
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    const normalizedOrigin = normalizeOrigin(origin);
+    if (allowedOrigins.includes(normalizedOrigin)) {
+      return callback(null, true);
+    }
+    console.warn(`CORS blocked origin: ${origin}`);
+    return callback(new Error(`Origin ${origin} not allowed by CORS`), false);
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization']

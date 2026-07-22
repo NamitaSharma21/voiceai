@@ -14,10 +14,10 @@ function Dashboard() {
     const fetchData = async () => {
       try {
         const [singleRes, groupRes] = await Promise.all([
-          axios.get("http://localhost:5000/api/attempt/single", {
+          axios.get("http://localhost:5000/api/attempts/single", {
             headers: { Authorization: `Bearer ${token}` },
           }),
-          axios.get("http://localhost:5000/api/attempt/group", {
+          axios.get("http://localhost:5000/api/attempts/group", {
             headers: { Authorization: `Bearer ${token}` },
           }),
         ]);

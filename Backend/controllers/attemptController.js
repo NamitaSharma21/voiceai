@@ -19,17 +19,17 @@ exports.createAttempt = async (req, res) => {
     } = req.body;
 
     // Validation
-    if (!attemptType || score === undefined || !totalQuestions) {
+    if (!attemptType) {
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
     const newAttempt = new Attempt({
       userId: req.userId,
       attemptType,
-      score,
-      totalQuestions,
-      correctAnswers,
-      timeSpent,
+      score: score ?? 0,
+      totalQuestions: totalQuestions ?? 1,
+      correctAnswers: correctAnswers ?? 1,
+      timeSpent: timeSpent ?? 0,
       audioFile,
       questions: questions || [],
       groupMembers: groupMembers || [],
@@ -53,7 +53,8 @@ exports.createAttempt = async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Attempt recorded successfully',
-      attempt: newAttempt
+      attempt: newAttempt,
+      aiResponse: newAttempt.feedback
     });
   } catch (error) {
     console.error('Create attempt error:', error);
